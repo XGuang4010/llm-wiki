@@ -1,7 +1,8 @@
 ---
 name: llm-wiki
-description: Karpathy-style LLM Wiki pattern for OpenCode. Ingest raw sources into a structured, interlinked markdown wiki, and file query answers back into the knowledge base.
+description: "Karpathy-style LLM Wiki pattern for OpenCode. Ingest raw sources into a structured, interlinked markdown wiki, and file query answers back into the knowledge base."
 trigger: /wiki
+metadata:
 ---
 
 > **Before executing any workflow below, you MUST first read `RULES.md` in this skill directory.**
