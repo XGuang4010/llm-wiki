@@ -127,6 +127,29 @@ summary: One-line description of the source
 
 ---
 
+## Sync Workflow
+
+**Trigger:** user says `/wiki sync`, "sync learnings", "ingest from .learning", or the agent runs its startup hook.
+
+**Steps:**
+1. **Run the scanner with auto-stage:**
+   ```bash
+   python scripts/learning_scanner.py --wiki-root <path> --auto-stage
+   ```
+   - This detects new/changed files across all `.learning` directories.
+   - It copies them into `raw/articles/YYYY-MM-DD-{safe_slug}.md` with `raw-source` frontmatter.
+   - It generates `.wiki/ingest_manifest.json` listing all staged sources.
+
+2. **Read the manifest.** If no sources were staged, report "No new learnings to sync." and stop.
+
+3. **For each staged source in the manifest, execute the standard Ingest Workflow starting at Step 2.**
+
+4. **After all staged sources are ingested, append a batch log entry to `wiki/log.md`.**
+
+5. Offer to run `git add . && git commit -m "sync: ingest .learning batch"`.
+
+---
+
 ## Lint Workflow
 
 **Trigger:** user says "lint wiki" or `/wiki lint`
