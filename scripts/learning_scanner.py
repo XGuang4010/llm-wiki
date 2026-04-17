@@ -219,7 +219,7 @@ def save_index(index_path: Path, data: dict) -> None:
 
 def diff_against_index(
     scan_results: Dict[str, Dict[str, str]],
-    index_data: dict,
+    stored_dirs: Dict[str, Dict[str, str]],
 ) -> Tuple[List[dict], List[dict], List[dict]]:
     """
     Compare scan results against the stored index.
@@ -232,8 +232,6 @@ def diff_against_index(
     added: List[dict] = []
     changed: List[dict] = []
     removed: List[dict] = []
-
-    stored_dirs = index_data.get("directories", {})
 
     for dir_path_str, current_files in scan_results.items():
         stored_files = stored_dirs.get(dir_path_str, {})
@@ -684,10 +682,10 @@ def main() -> int:
     # 5. Load existing index and diff
     index_data = load_index(index_path)
     learning_added, learning_changed, learning_removed = diff_against_index(
-        learning_results, {"directories": index_data.get("learning_directories", {})}
+        learning_results, index_data.get("learning_directories", {})
     )
     wiki_added, wiki_changed, wiki_removed = diff_against_index(
-        wiki_results, {"directories": index_data.get("wiki_directories", {})}
+        wiki_results, index_data.get("wiki_directories", {})
     )
 
     # 6. Auto-stage .learning if requested

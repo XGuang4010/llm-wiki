@@ -11,6 +11,17 @@ The wiki is a **persistent, compounding artifact**. Every ingest and every filed
 
 ---
 
+## Wiki Root Resolution
+
+The effective wiki root directory is resolved in this precedence:
+1. The output of `python scripts/configure.py` (reads skill-level `config.json`, then project-level `.wiki/config.json`).
+2. If `configure.py` has not been run, read `.wiki/config.json` in the current workspace.
+3. Fallback: `./.wiki` under the current working directory.
+
+All `/wiki` commands and scripts operate relative to this resolved wiki root.
+
+---
+
 ## Quick Reference
 
 | Command | Action |
@@ -24,7 +35,7 @@ The wiki is a **persistent, compounding artifact**. Every ingest and every filed
 <!-- CONFIGURE_START -->
 > **Auto-configured wiki directory:** `D:\VaultRepos\CyberSecurity`
 >
-> This block is managed by `configure.py`. Do not edit manually.
+> This value was last set by `configure.py`. For the current project, run `configure.py` to get the active wiki directory.
 <!-- CONFIGURE_END -->
 
 ---
@@ -115,6 +126,7 @@ Produce a structured health report and fix issues autonomously.
 - Read the report and fix identified issues autonomously.
 - Flag any contradictions, orphans, stale claims, or missing concept pages.
 - Suggest new questions to investigate and new sources to look for.
+- For sync conflicts (e.g., `foo.md` + `foo_1.md`), the Agent decides whether merging is appropriate. If the variants are clearly related, the Agent may auto-merge them into the base file and update `[[wiki-link]]` references accordingly. If uncertain, flag the conflict in the report and wait for user direction.
 
 ### Output requirements
 - A markdown lint report presented to the user.
@@ -124,9 +136,11 @@ Produce a structured health report and fix issues autonomously.
 ### You MAY
 - Use `grep` to assist contradiction and orphan detection if `wiki_lint.py` is unavailable.
 - Propose new concept pages or sources to ingest based on findings.
+- Auto-merge sync conflicts when the relationship between variants is unambiguous.
 
 ### You MUST NOT
 - Present findings without also appending them to `wiki/log.md`.
+- Silently delete content during a sync-conflict merge without logging what was preserved.
 
 ---
 

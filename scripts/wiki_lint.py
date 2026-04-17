@@ -15,6 +15,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Set, Tuple
 
+EXCLUDED_ORPHANS = {"index", "log", "overview"}
+
 
 def extract_wiki_links(text: str) -> Set[str]:
     """Extract all [[...]] wiki link stems from text."""
@@ -91,7 +93,7 @@ def run_lint(wiki_root: Path) -> dict:
                 linked_stems.add(link)
     orphan_pages = sorted(
         orphan_candidates[s].relative_to(wiki_root / "wiki").as_posix()
-        for s in set(orphan_candidates.keys()) - linked_stems
+        for s in set(orphan_candidates.keys()) - linked_stems - EXCLUDED_ORPHANS
     )
 
     # Missing concept pages: links mentioned >=3 times with no .md file in concepts/ or entities/

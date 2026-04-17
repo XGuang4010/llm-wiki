@@ -11,7 +11,7 @@ Behavior:
    `.wiki` folder under the current project workspace (where the agent is running).
 3. If "wiki_dir" is set to a path, that path is used as the wiki directory.
 4. Initializes the full llm-wiki directory structure under the resolved wiki_dir.
-5. Updates RULES.md in the skill directory to reflect the configured wiki directory.
+5. Prints the resolved wiki directory in a structured way for the Agent to read.
 
 This script is intended to be run automatically when the skill is initialized
 (via the /wiki init or /init slash command).
@@ -19,7 +19,6 @@ This script is intended to be run automatically when the skill is initialized
 
 import json
 import os
-import re
 import sys
 from pathlib import Path
 
@@ -27,7 +26,6 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).parent.resolve()
 SKILL_DIR = SCRIPT_DIR.parent
 SKILL_CONFIG_PATH = SKILL_DIR / "config.json"
-RULES_PATH = SKILL_DIR / "RULES.md"
 
 DEFAULT_CONFIG = {"wiki_dir": ""}
 
@@ -121,49 +119,15 @@ def init_directory_structure(wiki_dir: Path) -> None:
             f.write("\n")
 
 
-def update_rules_md(wiki_dir: str) -> None:
-    """Update RULES.md so that the default wiki directory is documented."""
-    if not RULES_PATH.exists():
-        print(f"Warning: {RULES_PATH} not found, skipping update.")
-        return
-
-    with RULES_PATH.open("r", encoding="utf-8") as f:
-        content = f.read()
-
-    start_marker = "<!-- CONFIGURE_START -->"
-    end_marker = "<!-- CONFIGURE_END -->"
-
-    config_block = f"""{start_marker}
-> **Auto-configured wiki directory:** `{wiki_dir}`
->
-> This block is managed by `configure.py`. Do not edit manually.
-{end_marker}"""
-
-    if start_marker in content and end_marker in content:
-        pattern = re.compile(
-            re.escape(start_marker) + ".*?" + re.escape(end_marker),
-            re.DOTALL,
-        )
-        new_content = pattern.sub(lambda m: config_block, content)
-    else:
-        new_content = content + "\n\n" + config_block + "\n"
-
-    with RULES_PATH.open("w", encoding="utf-8") as f:
-        f.write(new_content)
-
-    print(f"Updated {RULES_PATH} with wiki_dir: {wiki_dir}")
-
-
 def main() -> int:
     config = load_config()
     wiki_dir = resolve_wiki_dir(config)
 
-    print(f"llm-wiki configured wiki directory: {wiki_dir}")
+    print(f"WIKI_DIR={wiki_dir}")
 
     wiki_dir_path = Path(wiki_dir)
     init_directory_structure(wiki_dir_path)
 
-    update_rules_md(wiki_dir)
     return 0
 
 

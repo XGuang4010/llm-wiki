@@ -40,14 +40,19 @@ def git_has_changes(path: Path) -> bool:
     return result.returncode == 0 and bool(result.stdout.strip())
 
 
-def git_add_all(path: Path) -> bool:
-    """Run git add -A in the repo."""
-    result = subprocess.run(
-        ["git", "-C", str(path), "add", "-A"],
-        capture_output=True,
-        text=True,
-    )
-    return result.returncode == 0
+def git_add_wiki_dirs(path: Path) -> bool:
+    """Stage raw/, wiki/, and .wiki/ subdirectories if they exist."""
+    for subdir in ["raw", "wiki", ".wiki"]:
+        target = path / subdir
+        if target.exists():
+            result = subprocess.run(
+                ["git", "-C", str(path), "add", subdir],
+                capture_output=True,
+                text=True,
+            )
+            if result.returncode != 0:
+                return False
+    return True
 
 
 def git_commit(path: Path, message: str) -> bool:
@@ -95,7 +100,7 @@ def main() -> int:
         print("Nothing to commit.")
         return 0
 
-    if not git_add_all(wiki_root):
+    if not git_add_wiki_dirs(wiki_root):
         print("Error: git add failed.", file=sys.stderr)
         return 1
 
