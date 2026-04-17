@@ -17,6 +17,7 @@ This skill implements the three-layer LLM Wiki architecture (raw / wiki / schema
 
 | Command | Action |
 |---------|--------|
+| `/wiki init` | Run configuration script to resolve and validate the wiki directory |
 | `/wiki ingest <path>` or `ingest <topic>` | Search web → save to `raw/` → compile into wiki |
 | `/wiki query "<question>"` | Search wiki and synthesize an answer (auto-saved to wiki) |
 | `/wiki lint` | Health-check the wiki for contradictions, orphans, gaps |
@@ -33,6 +34,7 @@ This skill implements the three-layer LLM Wiki architecture (raw / wiki / schema
 > **Case A — Specific path or URL given:** `read` that file/URL directly and proceed to Step 2.
 >
 > **Case B — No path given (搜集/查找/研究/调查/寻找…):** The user wants you to find relevant information on the web. You must:
+
 > 1. Use `websearch` or `webfetch` to gather content from the internet
 > 2. Save the raw content to `raw/articles/YYYY-MM-DD-topic.md` with the raw-source frontmatter
 > 3. `read` the saved file
@@ -41,6 +43,7 @@ This skill implements the three-layer LLM Wiki architecture (raw / wiki / schema
 **A single source typically touches 5-15 wiki pages.** Do not stop at creating just the summary page.
 
 **Steps:**
+
 1. **Acquire source** (follow Case A or B above).
 2. `read` `wiki/index.md` to understand current structure.
    - If wiki is empty (first ingest): skip contradiction check, proceed to Step 5
@@ -77,7 +80,9 @@ related:
 title: Source Title
 type: raw-source
 source: web_search | url | file
-tags: [topic1, topic2]
+tags: 
+  - topic1
+  - topic2
 created: YYYY-MM-DD
 summary: One-line description of the source
 ---

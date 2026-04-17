@@ -15,10 +15,17 @@ The wiki is a **persistent, compounding artifact**. Every ingest and every filed
 
 | Command | Action |
 |---------|--------|
+| `/wiki init` | Run configuration script to resolve and validate the wiki directory |
 | `/wiki ingest <path>` or `ingest <topic>` | Search web → save to `raw/` → compile into wiki |
 | `/wiki query "<question>"` | Search wiki and synthesize an answer (auto-saved to wiki) |
 | `/wiki lint` | Health-check the wiki for contradictions, orphans, gaps |
 | `/wiki sync` | Scan `.learning` dirs → stage new/changed files → auto-ingest into wiki |
+
+<!-- CONFIGURE_START -->
+> **Auto-configured wiki directory:** `D:\Projects\MySkills\llm-wiki\.wiki`
+>
+> This block is managed by `configure.py`. Do not edit manually.
+<!-- CONFIGURE_END -->
 
 ---
 
