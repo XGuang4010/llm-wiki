@@ -22,10 +22,20 @@ The wiki is a **persistent, compounding artifact**. Every ingest and every filed
 | `/wiki sync` | Scan `.learning` and project `.wiki` dirs → stage/sync → auto-ingest into wiki |
 
 <!-- CONFIGURE_START -->
-> **Auto-configured wiki directory:** `D:\Projects\MySkills\llm-wiki\.wiki`
+> **Auto-configured wiki directory:** `D:\VaultRepos\CyberSecurity`
 >
 > This block is managed by `configure.py`. Do not edit manually.
 <!-- CONFIGURE_END -->
+
+---
+
+## Autonomy Principles
+
+- The Agent resolves contradictions autonomously and notes them in `wiki/log.md`.
+- The Agent commits changes directly without asking when `.wiki/config.json` has `auto_commit: true`.
+- The Agent files every query answer automatically without prompting the user.
+- The Agent applies lint fixes directly and reports what was changed.
+- The Agent decides the best page structure, cross-link targets, and output format within the constraints below.
 
 ---
 
@@ -33,35 +43,96 @@ The wiki is a **persistent, compounding artifact**. Every ingest and every filed
 
 **Trigger:** User provides a specific path/URL, OR asks to "搜集/查找/研究 [topic] 相关的资料/知识/方法/解决方案" without providing a path.
 
-**Source acquisition — two cases:**
+### Goal
+Acquire the source, extract its knowledge, and expand the wiki with new or updated concept pages, entity pages, a source summary, and cross-links.
 
-> **Case A — Specific path or URL given:** `read` that file/URL directly and proceed to Step 2.
->
-> **Case B — No path given (搜集/查找/研究/调查/寻找…):** The user wants you to find relevant information on the web. You must:
-> 1. Use `websearch` or `webfetch` to gather content from the internet
-> 2. Save the raw content to `raw/articles/YYYY-MM-DD-topic.md` with the raw-source frontmatter
-> 3. `read` the saved file
-> 4. Then proceed to Step 2
+### Agent responsibilities
+- Determine whether the source is local (read directly) or remote (search and download).
+- Save raw sources to `raw/articles/YYYY-MM-DD-topic.md` with the raw-source frontmatter when remote.
+- Read `wiki/index.md` to understand the current structure before creating pages.
+- On first ingest (empty wiki), skip contradiction checks.
+- On subsequent ingests, compare the new source against existing wiki claims (dates, numbers, definitions, rankings). Resolve contradictions autonomously and note them in `wiki/log.md`.
+- Create or update pages without asking the user for approval.
 
-**A single source typically touches 5-15 wiki pages.** Do not stop at creating just the summary page.
+### Output requirements
+- A **summary page** in `wiki/sources/YYYY-MM-DD-slug.md`.
+- **Concept pages** in `wiki/concepts/` (typically 3-6 per source).
+- **Entity pages** in `wiki/entities/` (people, organizations, tools, CVEs, malware families, etc.).
+- `[[wiki-link]]` cross-links in `related:` frontmatter and body text on every new/updated page.
+- Updated `wiki/index.md` and `wiki/overview.md` (if domain synthesis has shifted).
+- An appended entry in `wiki/log.md`.
 
-**Steps:**
-1. **Acquire source** (follow Case A or B above).
-2. `read` `wiki/index.md` to understand current structure.
-   - If wiki is empty (first ingest): skip contradiction check, proceed to Step 5
-   - If wiki has content: `read` relevant existing concept/entity pages to identify contradictions
-3. **Check for contradictions (only if wiki has existing content):** Compare the new source against existing wiki claims (dates, numbers, definitions, rankings). Flag any conflicts to the user *before* writing updates. Skip this step on first ingest.
-4. Discuss key takeaways with the user.
-5. Create/update a **summary page** in `wiki/sources/YYYY-MM-DD-slug.md`.
-6. Create/update **concept pages** in `wiki/concepts/` (extracted terms, techniques, frameworks). A single source often creates 3-6 concept pages.
-7. Create/update **entity pages** in `wiki/entities/` (people, organizations, tools, CVEs, malware families).
-8. **Add cross-links in the new/updated pages:** `read` `wiki/index.md` to know what pages already exist. For each new or updated page, add `[[wiki-link]]` links to relevant *existing* pages — both in the `related:` frontmatter field and in the body text. This builds the link graph as pages are created.
-9. Update `wiki/index.md` with new/updated entries (follow the index format below).
-10. Update `wiki/overview.md` if the domain synthesis has shifted.
-11. Append to `wiki/log.md` using the format below.
-12. Offer to run `git add . && git commit -m "ingest: <title>"`.
+### You MAY
+- Use `websearch` or `webfetch` for remote sources.
+- Use `edit` instead of `write` when updating existing pages.
+- Generate Mermaid diagrams or comparison tables inside concept pages when helpful.
 
-**Frontmatter template for wiki pages:**
+### You MUST NOT
+- Write to `raw/` after the initial staging of a remote source.
+- Skip frontmatter on wiki pages.
+- Skip cross-linking.
+- Ask the user for permission before writing pages.
+
+---
+
+## Query & File Workflow
+
+**Trigger:** user asks any question against the wiki.
+
+### Goal
+Synthesize an answer from the wiki, cite sources with `[[wiki-link]]`, and file the result automatically.
+
+### Agent responsibilities
+- Read `wiki/index.md`, then `grep` or `read` relevant pages (and raw sources if needed).
+- Synthesize an answer in the most useful form: markdown page, comparison table, Mermaid diagram, or chart.
+- Save the answer without prompting the user.
+
+### Output requirements
+- A saved answer at `wiki/queries/YYYY-MM-DD-slug.md` (or `wiki/comparisons/` for tables).
+- Frontmatter with `type: query-answer` or `type: comparison`, `question: "..."`, and `sources: [...]`.
+- `[[wiki-link]]` citations in `related:` frontmatter and body.
+- Updated `wiki/index.md` and `wiki/log.md`.
+
+### You MAY
+- Pull in raw sources if the wiki pages are insufficient.
+- Structure the answer as a table or diagram when that improves clarity.
+
+### You MUST NOT
+- Ask whether to file the answer — filing is mandatory.
+- Omit citations.
+
+---
+
+## Lint Workflow
+
+**Trigger:** user says "lint wiki" or `/wiki lint`
+
+### Goal
+Produce a structured health report and fix issues autonomously.
+
+### Agent responsibilities
+- Run `wiki_lint.py` to generate a structured report.
+- Read the report and fix identified issues autonomously.
+- Flag any contradictions, orphans, stale claims, or missing concept pages.
+- Suggest new questions to investigate and new sources to look for.
+
+### Output requirements
+- A markdown lint report presented to the user.
+- The report appended to `wiki/log.md`.
+- Any auto-fixes applied to the wiki directly.
+
+### You MAY
+- Use `grep` to assist contradiction and orphan detection if `wiki_lint.py` is unavailable.
+- Propose new concept pages or sources to ingest based on findings.
+
+### You MUST NOT
+- Present findings without also appending them to `wiki/log.md`.
+
+---
+
+## Frontmatter Templates
+
+**Wiki pages:**
 ```yaml
 ---
 title: Page Title
@@ -76,7 +147,7 @@ related:
 ---
 ```
 
-**Frontmatter template for raw sources (saved before ingest):**
+**Raw sources:**
 ```yaml
 ---
 title: Source Title
@@ -88,7 +159,10 @@ summary: One-line description of the source
 ---
 ```
 
-**index.md format:**
+---
+
+## index.md Format
+
 ```markdown
 # Wiki Index
 
@@ -107,45 +181,6 @@ summary: One-line description of the source
 ## Query Answers
 - [[query-name]] — Filed from query YYYY-MM-DD
 ```
-
----
-
-## Query & File Workflow
-
-**Trigger:** user asks any question against the wiki.
-
-**Every query answer is automatically saved to `wiki/queries/`.** Do not ask "file it" — just do it.
-
-**Steps:**
-1. `read` `wiki/index.md`.
-2. `grep` or `read` relevant wiki pages (and raw sources if needed).
-3. Synthesize an answer with `[[wiki-link]]` citations.
-4. The answer can take different forms:
-   - A markdown page
-   - A comparison table
-   - A Mermaid or flowchart diagram
-   - A chart or diagram
-5. **Save the answer** to `wiki/queries/YYYY-MM-DD-slug.md` (or `wiki/comparisons/` for tables). Always do this — do not ask.
-6. Add frontmatter: `type: query-answer` or `type: comparison`, `question: "..."`, `sources: [...]`.
-7. Add `[[wiki-link]]` citations to relevant existing pages in `related:` frontmatter and body.
-8. Update `wiki/index.md` and `wiki/log.md`.
-
----
-
-## Lint Workflow
-
-**Trigger:** user says "lint wiki" or `/wiki lint`
-
-**Steps:**
-1. `grep` for contradictions (e.g., conflicting dates, numbers, claims).
-2. `grep` for orphan pages (pages never linked by `[[...]]`).
-3. `grep` for frequently mentioned terms lacking a concept page.
-4. Check for stale claims superseded by newer sources.
-5. **Check for `.wiki` sync conflicts in `wiki/`:** Detect filename groups like `foo.md`, `foo_1.md`, `foo_2.md` (created when multiple projects have the same wiki page) and flag them for merging. Conflicts in `raw/` are considered intentional multi-version retention and are not flagged.
-6. Check `wiki/log.md` for recurring issues.
-7. Suggest new questions to investigate and new sources to look for.
-8. Present a markdown report to the user.
-9. Append the report to `wiki/log.md`.
 
 ---
 
@@ -198,8 +233,9 @@ At small scale, `index.md` + OpenCode's built-in `grep`/`read` is sufficient. As
 - **Always cross-link** with `[[wiki-link]]` syntax — when creating/updating a page, always read `wiki/index.md` first and link to relevant existing pages in both `related:` frontmatter and body text.
 - **Always log** every ingest, query-filing, and lint pass.
 - Prefer `edit` over `write` when updating existing pages.
-- **Cross-linking is easily skipped** — when creating/updating a page, always `read` `wiki/index.md` first and add `[[wiki-link]]` citations to relevant existing pages. Treat step 8 as mandatory, not optional.
+- **Cross-linking is easily skipped** — when creating/updating a page, always `read` `wiki/index.md` first and add `[[wiki-link]]` citations to relevant existing pages. Treat it as mandatory, not optional.
 - **Co-evolve the schema:** As you discover what works, update `OPENCODE.md` with new conventions, page types, and workflows.
+- **Execute autonomously:** Do not ask the user for permission before writing wiki pages, filing query answers, or committing when `auto_commit: true` is set in `.wiki/config.json`.
 
 ---
 
@@ -225,34 +261,30 @@ python scripts/learning_scanner.py --wiki-root ./wiki --output changed_files.jso
 
 This workflow bridges both `.learning` directories (e.g., from self-improvement skill) and project-level `.wiki` directories into the total wiki automatically.
 
-**Steps:**
-1. **Run the scanner with auto-stage:**
-   ```bash
-   python scripts/learning_scanner.py --wiki-root <path> --auto-stage
-   ```
-   - Scans all `.learning` and `.wiki` directories under `--scan-root`.
-   - `.learning` files are staged into `raw/articles/YYYY-MM-DD-{safe_slug}.md` with `raw-source` frontmatter.
-   - `.wiki` files (`raw/` and `wiki/` only) are directly copied into the corresponding directories under the total wiki.
-   - If a `.wiki` target filename already exists, the scanner auto-renames it to `foo_1.md`, `foo_2.md`, etc.
-   - Generates `.wiki/ingest_manifest.json` listing all staged `.learning` sources.
-   - Updates `.wiki/doc_index.json` so unchanged files are not re-processed. (Migrates from old `learning_index.json` if present.)
+#### Goal
+Stage new or changed `.learning` files, sync project `.wiki` directories, and ingest staged sources into the total wiki.
 
-2. **Read the manifest.** If no `.learning` sources were staged, skip to step 4.
+#### Agent responsibilities
+- Run the scanner with auto-stage:
+  ```bash
+  python scripts/learning_scanner.py --wiki-root <path> --auto-stage
+  ```
+- Read `.wiki/ingest_manifest.json`. If no `.learning` sources were staged, finish after the scanner step.
+- For each staged `.learning` source, execute the standard Ingest Workflow.
+- `.wiki` files do NOT need ingestion; they are already in place.
 
-3. **For each staged `.learning` source, execute the standard Ingest Workflow starting at Step 2.**
-   - `.wiki` files do NOT need ingestion; they are already in place.
+#### Output requirements
+- `.learning` files staged into `raw/articles/YYYY-MM-DD-{safe_slug}.md` with `raw-source` frontmatter.
+- `.wiki` files (`raw/` and `wiki/` only) copied into the corresponding directories under the total wiki.
+- A batch log entry appended to `wiki/log.md`.
 
-4. **After syncing, append a batch log entry to `wiki/log.md`:**
-   ```markdown
-   ## [YYYY-MM-DD] sync | batch ingest
-   - .learning staged: N
-   - .wiki synced: N
-   - Ingested: `raw/articles/...`
-   - Pages created: `wiki/sources/...`, `wiki/concepts/...`
-   - Pages updated: `wiki/entities/...`, `wiki/index.md`
-   ```
+#### You MAY
+- Skip ingestion if the manifest is empty.
+- Let the scanner auto-rename conflicting `.wiki` files to `foo_1.md`, `foo_2.md`, etc.
 
-5. Offer to run `git add . && git commit -m "sync: ingest batch"`.
+#### You MUST NOT
+- Delete existing wiki files during sync.
+- Skip logging the batch operation.
 
 ### `.wiki` synchronization details
 
@@ -312,3 +344,5 @@ This skill is intentionally decoupled from OpenCode-specific mechanics so it can
 - [ ] Configure the agent to read `RULES.md` before handling any `/wiki` command.
 - [ ] Test one manual ingest and one `.learning` sync end-to-end.
 - [ ] Set up periodic scanning if the product supports background tasks.
+
+(End of file)
