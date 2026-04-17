@@ -21,7 +21,7 @@ This skill implements the three-layer LLM Wiki architecture (raw / wiki / schema
 | `/wiki ingest <path>` or `ingest <topic>` | Search web → save to `raw/` → compile into wiki |
 | `/wiki query "<question>"` | Search wiki and synthesize an answer (auto-saved to wiki) |
 | `/wiki lint` | Health-check the wiki for contradictions, orphans, gaps |
-| `/wiki sync` | Scan `.learning` dirs → stage new/changed files → auto-ingest into wiki |
+| `/wiki sync` | Scan `.learning` and project `.wiki` dirs → stage/sync → auto-ingest into wiki |
 
 ---
 
@@ -141,17 +141,21 @@ summary: One-line description of the source
    ```bash
    python scripts/learning_scanner.py --wiki-root <path> --auto-stage
    ```
-   - This detects new/changed files across all `.learning` directories.
-   - It copies them into `raw/articles/YYYY-MM-DD-{safe_slug}.md` with `raw-source` frontmatter.
-   - It generates `.wiki/ingest_manifest.json` listing all staged sources.
+   - Scans all `.learning` and `.wiki` directories under `--scan-root`.
+   - `.learning` files are staged into `raw/articles/YYYY-MM-DD-{safe_slug}.md` with `raw-source` frontmatter.
+   - `.wiki` files (`raw/` and `wiki/` only) are directly copied into the corresponding directories under the total wiki.
+   - If a `.wiki` target filename already exists, the scanner auto-renames it to `foo_1.md`, `foo_2.md`, etc.
+   - Generates `.wiki/ingest_manifest.json` listing all staged `.learning` sources.
+   - Updates `.wiki/doc_index.json` so unchanged files are not re-processed.
 
-2. **Read the manifest.** If no sources were staged, report "No new learnings to sync." and stop.
+2. **Read the manifest.** If no `.learning` sources were staged, skip to step 4.
 
-3. **For each staged source in the manifest, execute the standard Ingest Workflow starting at Step 2.**
+3. **For each staged `.learning` source, execute the standard Ingest Workflow starting at Step 2.**
+   - `.wiki` files do NOT need ingestion; they are already in place.
 
-4. **After all staged sources are ingested, append a batch log entry to `wiki/log.md`.**
+4. **After syncing, append a batch log entry to `wiki/log.md`.**
 
-5. Offer to run `git add . && git commit -m "sync: ingest .learning batch"`.
+5. Offer to run `git add . && git commit -m "sync: ingest batch"`.
 
 ---
 

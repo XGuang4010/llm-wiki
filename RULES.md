@@ -19,7 +19,7 @@ The wiki is a **persistent, compounding artifact**. Every ingest and every filed
 | `/wiki ingest <path>` or `ingest <topic>` | Search web → save to `raw/` → compile into wiki |
 | `/wiki query "<question>"` | Search wiki and synthesize an answer (auto-saved to wiki) |
 | `/wiki lint` | Health-check the wiki for contradictions, orphans, gaps |
-| `/wiki sync` | Scan `.learning` dirs → stage new/changed files → auto-ingest into wiki |
+| `/wiki sync` | Scan `.learning` and project `.wiki` dirs → stage/sync → auto-ingest into wiki |
 
 <!-- CONFIGURE_START -->
 > **Auto-configured wiki directory:** `D:\Projects\MySkills\llm-wiki\.wiki`
@@ -141,10 +141,11 @@ summary: One-line description of the source
 2. `grep` for orphan pages (pages never linked by `[[...]]`).
 3. `grep` for frequently mentioned terms lacking a concept page.
 4. Check for stale claims superseded by newer sources.
-5. Check `wiki/log.md` for recurring issues.
-6. Suggest new questions to investigate and new sources to look for.
-7. Present a markdown report to the user.
-8. Append the report to `wiki/log.md`.
+5. **Check for `.wiki` sync conflicts in `wiki/`:** Detect filename groups like `foo.md`, `foo_1.md`, `foo_2.md` (created when multiple projects have the same wiki page) and flag them for merging. Conflicts in `raw/` are considered intentional multi-version retention and are not flagged.
+6. Check `wiki/log.md` for recurring issues.
+7. Suggest new questions to investigate and new sources to look for.
+8. Present a markdown report to the user.
+9. Append the report to `wiki/log.md`.
 
 ---
 
@@ -222,35 +223,43 @@ python scripts/learning_scanner.py --wiki-root ./wiki --output changed_files.jso
 
 **Trigger:** user says `/wiki sync`, "sync learnings", "ingest from .learning", or the agent runs its startup hook.
 
-This workflow bridges `.learning` directories (e.g., from self-improvement skill) into the wiki automatically.
+This workflow bridges both `.learning` directories (e.g., from self-improvement skill) and project-level `.wiki` directories into the total wiki automatically.
 
 **Steps:**
 1. **Run the scanner with auto-stage:**
    ```bash
    python scripts/learning_scanner.py --wiki-root <path> --auto-stage
    ```
-   - This detects new/changed files across all `.learning` directories.
-   - It copies them into `raw/articles/YYYY-MM-DD-{safe_slug}.md` with `raw-source` frontmatter.
-   - It generates `.wiki/ingest_manifest.json` listing all staged sources.
-   - It updates `.wiki/learning_index.json` so unchanged files are not re-processed.
+   - Scans all `.learning` and `.wiki` directories under `--scan-root`.
+   - `.learning` files are staged into `raw/articles/YYYY-MM-DD-{safe_slug}.md` with `raw-source` frontmatter.
+   - `.wiki` files (`raw/` and `wiki/` only) are directly copied into the corresponding directories under the total wiki.
+   - If a `.wiki` target filename already exists, the scanner auto-renames it to `foo_1.md`, `foo_2.md`, etc.
+   - Generates `.wiki/ingest_manifest.json` listing all staged `.learning` sources.
+   - Updates `.wiki/doc_index.json` so unchanged files are not re-processed. (Migrates from old `learning_index.json` if present.)
 
-2. **Read the manifest.** If no sources were staged, report "No new learnings to sync." and stop.
+2. **Read the manifest.** If no `.learning` sources were staged, skip to step 4.
 
-3. **For each staged source in the manifest, execute the standard Ingest Workflow starting at Step 2.**
-   - The `raw/articles/` file is already the acquired source (equivalent to **Case A**).
-   - `read` `wiki/index.md`, check for contradictions, create/update summary/concept/entity pages, cross-link, update index/overview/log.
-   - A single `.learning` file may still touch 5-15 wiki pages if it is dense with concepts.
+3. **For each staged `.learning` source, execute the standard Ingest Workflow starting at Step 2.**
+   - `.wiki` files do NOT need ingestion; they are already in place.
 
-4. **After all staged sources are ingested, append a batch log entry to `wiki/log.md`:**
+4. **After syncing, append a batch log entry to `wiki/log.md`:**
    ```markdown
-   ## [YYYY-MM-DD] sync | .learning batch ingest
-   - Staged sources: N
-   - Ingested: `raw/articles/...`, `raw/articles/...`
+   ## [YYYY-MM-DD] sync | batch ingest
+   - .learning staged: N
+   - .wiki synced: N
+   - Ingested: `raw/articles/...`
    - Pages created: `wiki/sources/...`, `wiki/concepts/...`
    - Pages updated: `wiki/entities/...`, `wiki/index.md`
    ```
 
-5. Offer to run `git add . && git commit -m "sync: ingest .learning batch"`.
+5. Offer to run `git add . && git commit -m "sync: ingest batch"`.
+
+### `.wiki` synchronization details
+
+- **Scope:** Only `raw/` and `wiki/` subdirectories inside a project's `.wiki` are synced. Metadata files (`doc_index.json`, `ingest_manifest.json`, etc.) are skipped.
+- **Mode:** Incremental by default. Use `--wiki-full-sync` to force a full re-copy of all `.wiki` files.
+- **Deletion:** Removed source files are **not** deleted from the total wiki. Use `/wiki lint` to detect and clean up stale or duplicate content.
+- **Conflicts:** When two projects have the same relative path (e.g., `wiki/concepts/foo.md`), the second one is renamed to `foo_1.md`, `foo_2.md`, etc. in the total wiki.
 
 ### Naming collisions across multiple `.learning` directories
 
@@ -295,6 +304,7 @@ This skill is intentionally decoupled from OpenCode-specific mechanics so it can
 | **Workspace root** | Some agents run inside a project directory; others run globally. Pass `--wiki-root` explicitly when calling the scanner script. |
 | **Cron / background jobs** | Not all agents support scheduling. Fallback: run the scanner at agent startup, or expose a manual `/wiki sync` command. |
 | **`.learning` location** | The scanner searches recursively. If an agent stores learnings under a different name (e.g., `.memory`, `.knowledge`), change the target directory name in `learning_scanner.py`. |
+| **`.wiki` aggregation** | Project-level `.wiki` directories are synced directly into the total wiki (`raw/` → `raw/`, `wiki/` → `wiki/`). Conflicting filenames are auto-renamed (`foo_1.md`, `foo_2.md`, etc.). |
 
 ### Recommended porting checklist
 - [ ] Copy `SKILL.md`, `RULES.md`, and `scripts/learning_scanner.py` into the skill/plugin directory of the target agent.
