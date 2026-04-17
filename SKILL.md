@@ -55,7 +55,7 @@ Acquire the source, extract its knowledge, and expand the wiki with new or updat
 - A **summary page** in `wiki/sources/YYYY-MM-DD-slug.md`.
 - **Concept pages** in `wiki/concepts/` (typically 3-6 per source).
 - **Entity pages** in `wiki/entities/` (people, organizations, tools, CVEs, malware families, etc.).
-- `[[wiki-link]]` cross-links in `related:` frontmatter and body text on every new/updated page.
+- `[[wiki-link]]` cross-links in the **body text** of every new/updated page (Obsidian only recognizes wiki-links in the body, not in frontmatter). Keep `related:` frontmatter as plain-text list for Dataview queries.
 - Updated `wiki/index.md` and `wiki/overview.md` (if domain synthesis has shifted).
 - An appended entry in `wiki/log.md`.
 
@@ -87,7 +87,7 @@ Synthesize an answer from the wiki, cite sources with `[[wiki-link]]`, and file 
 ### Output requirements
 - A saved answer at `wiki/queries/YYYY-MM-DD-slug.md` (or `wiki/comparisons/` for tables).
 - Frontmatter with `type: query-answer` or `type: comparison`, `question: "..."`, and `sources: [...]`.
-- `[[wiki-link]]` citations in `related:` frontmatter and body.
+- `[[wiki-link]]` citations in the **body text**. Keep `related:` frontmatter as plain-text list for Dataview queries.
 - Updated `wiki/index.md` and `wiki/log.md`.
 
 ### You MAY
@@ -174,9 +174,19 @@ confidence: high | medium | low
 sources:
   - raw/...
 related:
-  - [[...]]
+  - concept-name
+  - entity-name
 ---
 ```
+
+**Body cross-links (Obsidian-compatible):**
+```markdown
+## Related
+- [[concept-name]]
+- [[entity-name]]
+```
+
+> **Note:** Obsidian only parses `[[wiki-link]]` syntax in the markdown body, not inside YAML frontmatter. Always place clickable wiki-links in the body, and keep `related:` frontmatter as plain text for Dataview or programmatic use.
 
 **Raw sources:**
 ```yaml
@@ -263,10 +273,10 @@ At small scale, `index.md` + OpenCode's built-in `grep`/`read` is sufficient. As
 
 - **NEVER write to `raw/`**. It is immutable.
 - **Always use frontmatter** on new wiki pages.
-- **Always cross-link** with `[[wiki-link]]` syntax — when creating/updating a page, always read `wiki/index.md` first and link to relevant existing pages in both `related:` frontmatter and body text.
+- **Always cross-link** with `[[wiki-link]]` syntax in the **body text** of every new/updated page. Also list related pages in the `related:` frontmatter as plain text (for Dataview queries).
 - **Always log** every ingest, query-filing, and lint pass.
 - Prefer `edit` over `write` when updating existing pages.
-- **Cross-linking is easily skipped** — when creating/updating a page, always `read` `wiki/index.md` first and add `[[wiki-link]]` citations to relevant existing pages. Treat it as mandatory, not optional.
+- **Cross-linking is easily skipped** — when creating/updating a page, always `read` `wiki/index.md` first and add `[[wiki-link]]` citations to relevant existing pages in the **body text**. Treat it as mandatory, not optional.
 - **Co-evolve the schema:** As you discover what works, update `OPENCODE.md` with new conventions, page types, and workflows.
 - **Execute autonomously:** Do not ask the user for permission before writing wiki pages, filing query answers, or committing when `auto_commit: true` is set in `.wiki/config.json`.
 
