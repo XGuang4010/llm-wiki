@@ -104,6 +104,10 @@ def main() -> int:
         print("Error: git add failed.", file=sys.stderr)
         return 1
 
+    if not git_has_changes(wiki_root):
+        print("Nothing to commit.")
+        return 0
+
     if not git_commit(wiki_root, args.message):
         print("Error: git commit failed.", file=sys.stderr)
         return 1
