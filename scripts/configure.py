@@ -8,7 +8,8 @@ Behavior:
 1. Reads config.json from the skill directory first, then falls back to
    a project-level `.wiki/config.json` in the current working directory.
 2. If "wiki_dir" is empty or not set, the default wiki directory is the
-   `.wiki` folder under the current project workspace (where the agent is running).
+   `.wiki` folder under the skill directory (so knowledge persists across
+   sessions by default).
 3. If "wiki_dir" is set to a path, that path is used as the wiki directory.
 4. Initializes the full llm-wiki directory structure under the resolved wiki_dir.
 5. Prints the resolved wiki directory in a structured way for the Agent to read.
@@ -33,10 +34,10 @@ DEFAULT_CONFIG = {"wiki_dir": ""}
 def get_default_wiki_dir() -> str:
     """
     Return the default wiki directory.
-    When config is empty, default to `.wiki` under the current working directory
-    (the project workspace).
+    When config is empty, default to `.wiki` under the skill directory
+    so the wiki persists across agent sessions.
     """
-    return str(Path(os.getcwd()).resolve() / ".wiki")
+    return str(SKILL_DIR / ".wiki")
 
 
 def load_json_config(path: Path) -> dict:
@@ -78,7 +79,9 @@ def resolve_wiki_dir(config: dict) -> str:
     return str(Path(wiki_dir).expanduser().resolve())
 
 
-def init_directory_structure(wiki_dir: Path) -> None:
+def init_directory_structure(
+    wiki_dir: Path, create_project_config: bool = False
+) -> None:
     """Create the full llm-wiki directory structure and default files."""
     subdirs = [
         "raw/articles",
@@ -111,22 +114,35 @@ def init_directory_structure(wiki_dir: Path) -> None:
             encoding="utf-8",
         )
 
-    project_config_path = Path(os.getcwd()).resolve() / ".wiki" / "config.json"
-    if not project_config_path.exists():
-        project_config_path.parent.mkdir(parents=True, exist_ok=True)
-        with project_config_path.open("w", encoding="utf-8") as f:
-            json.dump({"auto_commit": False}, f, indent=2)
-            f.write("\n")
+    if create_project_config:
+        project_config_path = Path(os.getcwd()).resolve() / ".wiki" / "config.json"
+        if not project_config_path.exists():
+            project_config_path.parent.mkdir(parents=True, exist_ok=True)
+            with project_config_path.open("w", encoding="utf-8") as f:
+                json.dump({"auto_commit": False}, f, indent=2)
+                f.write("\n")
 
 
 def main() -> int:
     config = load_config()
     wiki_dir = resolve_wiki_dir(config)
 
+    skill_default = str(SKILL_DIR / ".wiki")
+    is_skill_default = wiki_dir == skill_default
+
     print(f"WIKI_DIR={wiki_dir}")
 
+    if is_skill_default:
+        print("\n[llm-wiki] Using the default skill-level wiki directory.")
+        print(f"  Current wiki root : {wiki_dir}")
+        print(f"  Set global default: edit {SKILL_CONFIG_PATH}")
+        print(
+            f"  Project override  : create {Path(os.getcwd()).resolve() / '.wiki' / 'config.json'}"
+        )
+        print()
+
     wiki_dir_path = Path(wiki_dir)
-    init_directory_structure(wiki_dir_path)
+    init_directory_structure(wiki_dir_path, create_project_config=not is_skill_default)
 
     return 0
 

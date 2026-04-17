@@ -16,9 +16,11 @@ metadata:
 The effective wiki root directory is resolved in this precedence:
 1. The output of `python scripts/configure.py` (reads skill-level `config.json`, then project-level `.wiki/config.json`).
 2. If `configure.py` has not been run, read `.wiki/config.json` in the current workspace.
-3. Fallback: `./.wiki` under the current working directory.
+3. Fallback: the `.wiki` folder under the skill directory itself (persists across sessions).
 
 All `/wiki` commands and scripts operate relative to this resolved wiki root.
+
+> **Initialization hint:** When you run `/wiki init`, the agent will tell you which wiki directory is active. To change the global default, edit the skill-level `config.json`. To use a different wiki for a single project, create `project_dir/.wiki/config.json` and set `wiki_dir` there.
 
 This skill implements the three-layer LLM Wiki architecture (raw / wiki / schema) inside OpenCode.
 

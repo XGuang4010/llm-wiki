@@ -16,9 +16,11 @@ The wiki is a **persistent, compounding artifact**. Every ingest and every filed
 The effective wiki root directory is resolved in this precedence:
 1. The output of `python scripts/configure.py` (reads skill-level `config.json`, then project-level `.wiki/config.json`).
 2. If `configure.py` has not been run, read `.wiki/config.json` in the current workspace.
-3. Fallback: `./.wiki` under the current working directory.
+3. Fallback: the `.wiki` folder under the skill directory itself (persists across sessions).
 
 All `/wiki` commands and scripts operate relative to this resolved wiki root.
+
+> **Initialization hint:** When you run `/wiki init`, the agent will tell you which wiki directory is active. To change the global default, edit the skill-level `config.json`. To use a different wiki for a single project, create `project_dir/.wiki/config.json` and set `wiki_dir` there.
 
 ---
 
@@ -33,9 +35,9 @@ All `/wiki` commands and scripts operate relative to this resolved wiki root.
 | `/wiki sync` | Scan `.learning` and project `.wiki` dirs → stage/sync → auto-ingest into wiki |
 
 <!-- CONFIGURE_START -->
-> **Auto-configured wiki directory:** `D:\VaultRepos\CyberSecurity`
+> **Auto-configured wiki directory:** resolved dynamically by `configure.py`.
 >
-> This value was last set by `configure.py`. For the current project, run `configure.py` to get the active wiki directory.
+> Global default comes from the skill-level `config.json`. Project-level `.wiki/config.json` overrides it. Run `configure.py` to get the active wiki directory for the current project.
 <!-- CONFIGURE_END -->
 
 ---
