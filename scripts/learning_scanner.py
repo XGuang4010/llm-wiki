@@ -26,6 +26,17 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 
+# Allow importing document_parser from the same scripts directory
+_scripts_dir = Path(__file__).parent.resolve()
+if str(_scripts_dir) not in sys.path:
+    sys.path.insert(0, str(_scripts_dir))
+
+try:
+    from document_parser import parse_docx, save_images, meta_to_yaml, DocumentMeta
+    _HAS_DOCX_PARSER = True
+except Exception:
+    _HAS_DOCX_PARSER = False
+
 
 DEFAULT_IGNORE_PATTERNS = {
     ".git",
@@ -344,6 +355,7 @@ def stage_file(
 ) -> dict:
     """
     Copy a single changed/new file into raw/articles/ with frontmatter.
+    Automatically detects .docx/.pdf and converts them via document_parser.
     Returns the manifest entry.
     """
     learning_dir = Path(item["learning_dir"])
@@ -365,6 +377,16 @@ def stage_file(
         if counter > 100:
             raw_path = original_raw_path
             break
+
+    # Detect document type
+    suffix = original_file.suffix.lower()
+    is_docx = suffix == ".docx"
+    is_pdf = suffix == ".pdf"
+
+    if is_docx and _HAS_DOCX_PARSER:
+        return _stage_docx_file(item, original_file, raw_path, raw_dir, safe_slug, today, rel_path)
+    elif is_pdf:
+        return _stage_pdf_file(item, original_file, raw_path, raw_dir, safe_slug, today, rel_path)
 
     frontmatter = f"""---
 title: {Path(rel_path).stem}
@@ -394,8 +416,138 @@ original_path: {original_file.resolve().as_posix()}
         "raw_path": raw_path.relative_to(raw_dir.parent).as_posix(),
         "status": item.get("status", "added"),
         "md5": item["md5"],
+        "doc_type": "text",
     }
 
+
+def _stage_docx_file(
+    item: dict,
+    original_file: Path,
+    raw_path: Path,
+    raw_dir: Path,
+    safe_slug: str,
+    today: str,
+    rel_path: str,
+) -> dict:
+    """Stage a .docx file by converting to markdown and extracting images/meta."""
+    from document_parser import parse_docx, save_images, meta_to_yaml
+
+    wiki_root = raw_dir.parent.parent
+    raw_documents_dir = wiki_root / "raw" / "documents"
+    raw_images_dir = wiki_root / "raw" / "images"
+    raw_documents_dir.mkdir(parents=True, exist_ok=True)
+    raw_images_dir.mkdir(parents=True, exist_ok=True)
+
+    # Parse document
+    content, meta, images = parse_docx(original_file, slug=safe_slug)
+
+    # Save original to raw/documents/
+    docx_dest = raw_documents_dir / f"{safe_slug}.docx"
+    shutil.copy2(original_file, docx_dest)
+
+    # Calculate checksum and size for original file
+    sha256_hash = hashlib.sha256()
+    with open(original_file, "rb") as f:
+        file_data = f.read()
+        sha256_hash.update(file_data)
+    meta.checksum = f"sha256:{sha256_hash.hexdigest()}"
+    meta.size_bytes = len(file_data)
+
+    # Save images
+    image_paths: list = []
+    if images:
+        image_paths = save_images(images, raw_images_dir, safe_slug)
+
+    # Write markdown with frontmatter
+    title = meta.title or safe_slug
+    summary = meta.subject or f"Auto-staged DOCX from .learning directory"
+    frontmatter = f"""---
+title: {title}
+type: raw-source
+source: learning_file
+tags: [learning, self-improvement, document, docx]
+created: {today}
+summary: {summary}
+original_path: {original_file.resolve().as_posix()}
+document_path: raw/documents/{safe_slug}.docx
+meta_path: raw/documents/{safe_slug}.meta.yaml
+---
+
+"""
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    with raw_path.open("w", encoding="utf-8") as out_f:
+        out_f.write(frontmatter)
+        out_f.write(content)
+        if image_paths:
+            out_f.write("\n\n## Extracted Images\n\n")
+            for i, img_path in enumerate(image_paths):
+                out_f.write(f"![Image {i}]({img_path})\n\n")
+
+    # Write meta.yaml sidecar
+    meta_path = raw_documents_dir / f"{safe_slug}.meta.yaml"
+    meta_yaml = meta_to_yaml(meta, safe_slug)
+    with open(meta_path, "w", encoding="utf-8") as f:
+        f.write(meta_yaml)
+
+    return {
+        "original": str(original_file.resolve()),
+        "learning_dir": item["learning_dir"],
+        "relative_path": rel_path,
+        "raw_path": raw_path.relative_to(raw_dir.parent).as_posix(),
+        "status": item.get("status", "added"),
+        "md5": item["md5"],
+        "doc_type": "docx",
+        "document_path": f"raw/documents/{safe_slug}.docx",
+        "meta_path": f"raw/documents/{safe_slug}.meta.yaml",
+        "images": image_paths,
+    }
+
+
+def _stage_pdf_file(
+    item: dict,
+    original_file: Path,
+    raw_path: Path,
+    raw_dir: Path,
+    safe_slug: str,
+    today: str,
+    rel_path: str,
+) -> dict:
+    """Stage a .pdf file by copying to raw/documents/ and creating minimal metadata."""
+    wiki_root = raw_dir.parent.parent
+    raw_documents_dir = wiki_root / "raw" / "documents"
+    raw_documents_dir.mkdir(parents=True, exist_ok=True)
+
+    # Copy original to raw/documents/
+    pdf_dest = raw_documents_dir / f"{safe_slug}.pdf"
+    shutil.copy2(original_file, pdf_dest)
+
+    frontmatter = f"""---
+title: {Path(original_file).stem}
+type: raw-source
+source: learning_file
+tags: [learning, self-improvement, document, pdf]
+created: {today}
+summary: Auto-staged PDF from .learning directory (content not extracted)
+original_path: {original_file.resolve().as_posix()}
+document_path: raw/documents/{safe_slug}.pdf
+---
+
+"""
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    with raw_path.open("w", encoding="utf-8") as out_f:
+        out_f.write(frontmatter)
+        out_f.write("\n\n<!-- PDF content not extracted. See raw/documents/ for original file. -->\n")
+
+    return {
+        "original": str(original_file.resolve()),
+        "learning_dir": item["learning_dir"],
+        "relative_path": rel_path,
+        "raw_path": raw_path.relative_to(raw_dir.parent).as_posix(),
+        "status": item.get("status", "added"),
+        "md5": item["md5"],
+        "doc_type": "pdf",
+        "document_path": f"raw/documents/{safe_slug}.pdf",
+    }
 
 def stage_learning_files(
     added: List[dict],
@@ -416,7 +568,6 @@ def stage_learning_files(
     for item in changed:
         item["status"] = "changed"
         manifest_entries.append(stage_file(item, scan_root, raw_dir, today))
-
     return manifest_entries
 
 
